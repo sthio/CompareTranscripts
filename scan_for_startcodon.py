@@ -1,5 +1,6 @@
 #!/home3/sthio/anaconda/envs/py356/bin/python3.5
 #Author: Shinta Thio
+#Last updated: Dec 3, 2019
 #Purpose: scan for upstream and downstream start codon from the strast codon predicted by transdecoder
 
 import os, sys, pyfaidx, re
