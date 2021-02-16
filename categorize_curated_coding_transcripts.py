@@ -1,10 +1,27 @@
 #!/home3/sthio/anaconda/envs/py356/bin/python3.5
 #Author: Shinta Thio
-# Purpose: categorize transcripts into 12 categories -- to be updated
-# 1) Transcripts with novel terminal intron/exon (extending annotated transcript)
-# 2) Transcripts with internal novel intron&exon
-# 3) Transcripts resulting from merging genes/transcripts
-# 4) Transcripts that didnt exist before / Novel transcript
+#Last updated: Dec 11,2019
+# Purpose: 
+# To categorize transcripts into 3 general categories and 13 specific categories based on their intron chain.
+# 3 general categories: 
+# 1) match
+# 2) overlap
+# 3) novel
+# The first two categories are for assembled transcripts that have their intron chains completely match or partially match (i.e., overlapping) those of existing WormBase transcripts. The last category is for assembled transcripts that are not present (i.e., not overlapping) WormBase transcripts.
+# 13 specific categories:
+# 1) Complete Match (WB confirmed)
+# 2) 3' extension
+# 3) 5' extension
+# 4) 5'&3' extension
+# 5) internal within exon
+# 6) internal within intron
+# 7) alternative donor
+# 8) alternative acceptor
+# 9) alternative donor&alternative acceptor
+# 10) merged
+# 11) complex changes
+# 12) other:single-exon, partial
+# 13) novel
 
 import os, sys, re, pyfaidx
 import gffutils as gff
@@ -33,25 +50,6 @@ complexchanges = sys.argv[13]
 novel 	= sys.argv[14]
 singleintron = sys.argv[15]
 shorter = sys.argv[16]
-
-# overlap_and_novel = sys.argv[3]
-# overlap_only 	  = sys.argv[4]
-# overlap_nomerged  = sys.argv[5]
-# merged_only 	  = sys.argv[6]
-# novel_only = sys.argv[3]
-# cbr_ref_pep_in	= sys.argv[3]
-# cel_ref_pep_in	= sys.argv[4]
-# cbr_cel_ortholog_tsv_in = sys.argv[5]
-# original_PID = sys.argv[6]
-# r_ext   = sys.argv[7]
-# l_ext   = sys.argv[8]
-# lr_ext  = sys.argv[9]
-# iwe 	= sys.argv[10]
-# iwi 	= sys.argv[11]
-# ad  	= sys.argv[12]
-# aa  	= sys.argv[13]
-# aaad  	= sys.argv[14]
-# complexchanges = sys.argv[15]
 
 ref_db_name= ref + '.db'
 qry_db_name= qry + '.db'
@@ -110,7 +108,7 @@ def build_linked_noisoform(tracking_q_transcript_id, temp5):
 def build_linked_isoform(tracking_q_transcript_id, temp5):
 	for trscrpt, (r_intron_chain, ref_gene_id, ref_coordinates) in ref_transcript_intron_isoform_dict.items():
 		for i in temp5:
-			if i in r_intron_chain: #TO-DO: STRANDEDNESS!!
+			if i in r_intron_chain:
 				if tracking_q_transcript_id not in linked_dict_isoform.keys():
 					linked_dict_isoform[tracking_q_transcript_id]=[coordinates, q_strand, q_transcript_id, ref_coordinates, trscrpt]
 				else:
@@ -411,7 +409,6 @@ with open(match, 'w') as o_match, open(r_ext, 'w') as o_r_ext, open(l_ext, 'w') 
 			exons = [(CDS.start, CDS.end) for CDS in qry_db.children(q_transcript, featuretype='CDS', order_by='start')]
 			intron_chain = [(exons[n][1]+1, exons[n+1][0]-1) for n in range(len(exons)-1)]
 			qry_transcript_intron_dict[tracking_q_transcript_id]=intron_chain
-			#print(tracking_q_transcript_id) if tracking_q_transcript_id in isoform_dict else 0 #remove this later! (MJ)
 			if q_transcript_id in ref_transcript_intron_dict.keys(): 						##23975
 				q_noisoform_c+=1
 				ref_transcript_id = q_transcript_id
@@ -436,7 +433,6 @@ with open(match, 'w') as o_match, open(r_ext, 'w') as o_r_ext, open(l_ext, 'w') 
 						# 	parse_CDS(q_transcript, tracking_q_transcript_id, coordinates, q_strand, 'nt')
 						# 	parse_CDS(q_transcript, tracking_q_transcript_id, coordinates, q_strand, 'pep')
 						output_features(q_transcript, o_match)
-						#--print(q_gene_id, tracking_q_transcript_id, coordinates, q_strand, category, sep= '\t', file = o_match)
 					else:
 						ic_same_differentcontent_c+=1											# 2,770 ---  2,819 
 						if len(intron_chain) == 1:	
@@ -448,16 +444,12 @@ with open(match, 'w') as o_match, open(r_ext, 'w') as o_r_ext, open(l_ext, 'w') 
 									#ori_PID, rev_PID, delta_PID = calc_rev_PID(q_transcript_id, coordinates, q_strand)
 									#print(tracking_q_transcript_id, coordinates, q_strand, ori_PID, rev_PID, delta_PID, sep ='\t', file = ad_pid)
 									output_features(q_transcript, o_ad)
-									#--output_features(q_transcript, o_overlap_novel), output_features(q_transcript, o_overlap_only), output_features(q_transcript, o_overlap_nomerged)
-									#--print(q_gene_id, tracking_q_transcript_id, coordinates, q_strand, category, sep= '\t', file = o_ad)
 								else:
 									category = "Alt. acceptor"
 									ic_same_diff_singleintron_AA_c+=1
 									#ori_PID, rev_PID, delta_PID = calc_rev_PID(q_transcript_id, coordinates, q_strand)
 									#print(tracking_q_transcript_id, coordinates, q_strand, ori_PID, rev_PID, delta_PID, sep ='\t', file = aa_pid)
 									output_features(q_transcript, o_aa)
-									#--output_features(q_transcript, o_overlap_novel), output_features(q_transcript, o_overlap_only), output_features(q_transcript, o_overlap_nomerged)
-									#--print(q_gene_id, tracking_q_transcript_id, coordinates, q_strand, category, sep= '\t', file = o_aa)
 							elif intron_chain[0][-1] == ref_intron_chain[0][-1]:
 								if q_strand == '-':
 									category = "Alt. acceptor"
@@ -465,24 +457,18 @@ with open(match, 'w') as o_match, open(r_ext, 'w') as o_r_ext, open(l_ext, 'w') 
 									#ori_PID, rev_PID, delta_PID = calc_rev_PID(q_transcript_id, coordinates, q_strand)
 									#print(tracking_q_transcript_id, coordinates, q_strand, ori_PID, rev_PID, delta_PID, sep ='\t', file = aa_pid)
 									output_features(q_transcript, o_aa)
-									#--output_features(q_transcript, o_overlap_novel), output_features(q_transcript, o_overlap_only), output_features(q_transcript, o_overlap_nomerged)
-									#--print(q_gene_id, tracking_q_transcript_id, coordinates, q_strand, category, sep= '\t', file = o_aa)
 								else:
 									category = "Alt. donor"
 									ic_same_diff_singleintron_AD_c+=1
 									#ori_PID, rev_PID, delta_PID = calc_rev_PID(q_transcript_id, coordinates, q_strand)
 									#print(tracking_q_transcript_id, coordinates, q_strand, ori_PID, rev_PID, delta_PID, sep ='\t', file = ad_pid)
 									output_features(q_transcript, o_ad)
-									#--output_features(q_transcript, o_overlap_novel), output_features(q_transcript, o_overlap_only), output_features(q_transcript, o_overlap_nomerged)
-									#--print(q_gene_id, tracking_q_transcript_id, coordinates, q_strand, category, sep= '\t', file = o_ad)
 							else:
 								category = "Alt. acceptor and donor"
 								ic_same_diff_singleintron_both_AA_AD_c +=1
 								#ori_PID, rev_PID, delta_PID = calc_rev_PID(q_transcript_id, coordinates, q_strand)
 								#print(tracking_q_transcript_id, coordinates, q_strand, ori_PID, rev_PID, delta_PID, sep ='\t', file = aaad_pid)
 								output_features(q_transcript, o_aaad)
-								#--output_features(q_transcript, o_overlap_novel), output_features(q_transcript, o_overlap_only), output_features(q_transcript, o_overlap_nomerged)
-								#--print(q_gene_id, tracking_q_transcript_id, coordinates, q_strand, category, sep= '\t', file = o_aaad)
 						else:
 							ic_same_diff_notsingleintron_c+=1								# 2,681 ---  2,726
 							temp3 = sorted([x for x in set_intron_chain if x not in set_ref_intron_chain])
@@ -496,16 +482,12 @@ with open(match, 'w') as o_match, open(r_ext, 'w') as o_r_ext, open(l_ext, 'w') 
 										#ori_PID, rev_PID, delta_PID = calc_rev_PID(q_transcript_id, coordinates, q_strand)
 										#print(tracking_q_transcript_id, coordinates, q_strand, ori_PID, rev_PID, delta_PID, sep ='\t', file = ad_pid)
 										output_features(q_transcript, o_ad)
-										#--output_features(q_transcript, o_overlap_novel), output_features(q_transcript, o_overlap_only), output_features(q_transcript, o_overlap_nomerged)
-										#--print(q_gene_id, tracking_q_transcript_id, coordinates, q_strand, category, sep= '\t', file = o_ad)
 									else:
 										category = "Alt. acceptor"
 										ic_same_diff_notsingleintron_1diff_AA_c+=1
 										#ori_PID, rev_PID, delta_PID = calc_rev_PID(q_transcript_id, coordinates, q_strand)
 										#print(tracking_q_transcript_id, coordinates, q_strand, ori_PID, rev_PID, delta_PID, sep ='\t', file = aa_pid)
 										output_features(q_transcript, o_aa)
-										#--output_features(q_transcript, o_overlap_novel), output_features(q_transcript, o_overlap_only), output_features(q_transcript, o_overlap_nomerged)
-										#--print(q_gene_id, tracking_q_transcript_id, coordinates, q_strand, category, sep= '\t', file = o_aa)
 								elif temp3[0][0]!=temp4[0][0] and temp3[0][-1]==temp4[0][-1]:
 									if q_strand == '-':
 										category = "Alt. acceptor"
@@ -513,24 +495,18 @@ with open(match, 'w') as o_match, open(r_ext, 'w') as o_r_ext, open(l_ext, 'w') 
 										#ori_PID, rev_PID, delta_PID = calc_rev_PID(q_transcript_id, coordinates, q_strand)
 										#print(tracking_q_transcript_id, coordinates, q_strand, ori_PID, rev_PID, delta_PID, sep ='\t', file = aa_pid)
 										output_features(q_transcript, o_aa)
-										#--output_features(q_transcript, o_overlap_novel), output_features(q_transcript, o_overlap_only), output_features(q_transcript, o_overlap_nomerged)
-										#--print(q_gene_id, tracking_q_transcript_id, coordinates, q_strand, category, sep= '\t', file = o_aa)
 									else:
 										category = "Alt. donor"
 										ic_same_diff_notsingleintron_1diff_AD_c+=1
 										#ori_PID, rev_PID, delta_PID = calc_rev_PID(q_transcript_id, coordinates, q_strand)
 										#print(tracking_q_transcript_id, coordinates, q_strand, ori_PID, rev_PID, delta_PID, sep ='\t', file = ad_pid)
 										output_features(q_transcript, o_ad)
-										#--output_features(q_transcript, o_overlap_novel), output_features(q_transcript, o_overlap_only), output_features(q_transcript, o_overlap_nomerged)
-										#--print(q_gene_id, tracking_q_transcript_id, coordinates, q_strand, category, sep= '\t', file = o_ad)
 								else:
 									category = "Alt. acceptor and donor"
 									ic_same_diff_notsingleintron_1diff_both_AA_AD_c+=1											 # 1,845 --- 1,885
 									#ori_PID, rev_PID, delta_PID = calc_rev_PID(q_transcript_id, coordinates, q_strand)
 									#print(tracking_q_transcript_id, coordinates, q_strand, ori_PID, rev_PID, delta_PID, sep ='\t', file = aaad_pid)
 									output_features(q_transcript, o_aaad)
-									#--output_features(q_transcript, o_overlap_novel), output_features(q_transcript, o_overlap_only), output_features(q_transcript, o_overlap_nomerged)
-									#--print(q_gene_id, tracking_q_transcript_id, coordinates, q_strand, category, sep= '\t', file = o_aaad)
 							else:														
 								category = "Complex changes, multiple AS events" 
 								#--output_features(q_transcript, o_overlap_novel), output_features(q_transcript, o_overlap_only), output_features(q_transcript, o_overlap_nomerged)
@@ -540,7 +516,6 @@ with open(match, 'w') as o_match, open(r_ext, 'w') as o_r_ext, open(l_ext, 'w') 
 								#ori_PID, rev_PID, delta_PID = calc_rev_PID(q_transcript_id, coordinates, q_strand)
 								#print(tracking_q_transcript_id, coordinates, q_strand, ori_PID, rev_PID, delta_PID, sep ='\t', file = complexchanges_pid)
 								output_features(q_transcript, o_cc)
-								#--print(q_gene_id, tracking_q_transcript_id, coordinates, q_strand, category, sep= '\t', file = o_cc)
 				elif len(intron_chain)>len(ref_intron_chain):								 # 2,908 --- 3,215
 					ic_longer_c+=1
 					temp5 = sorted([x for x in set_intron_chain if x not in set_ref_intron_chain])
@@ -567,7 +542,6 @@ with open(match, 'w') as o_match, open(r_ext, 'w') as o_r_ext, open(l_ext, 'w') 
 										ic_longer_ref_subset_qry_refnotzero_left_linked_c+=1
 										k, v = tracking_q_transcript_id, linked_dict.get(tracking_q_transcript_id)
 										output_features(q_transcript, o_merged)
-										#--output_features(q_transcript, o_overlap_novel), output_features(q_transcript, o_overlap_only), output_features(q_transcript, o_merged)
 										#print(category, tracking_q_transcript_id, coordinates, q_strand, v[2:], '2 genes', sep= '\t') if len(v)==5 else print(category, tracking_q_transcript_id, coordinates, q_strand, v[2:],'3 genes', sep= '\t')
 										# > print(q_gene_id, tracking_q_transcript_id, coordinates, q_strand, category,v[2:], '2 genes', sep= '\t') if len(v)==5 else print(q_gene_id, tracking_q_transcript_id, coordinates, q_strand, category,v[2:],'3 genes', sep= '\t')
 										#--print(q_gene_id, tracking_q_transcript_id, coordinates, q_strand, category,v[2:], '2 genes', sep= '\t', file = o_merged) if len(v)==4 else print(q_gene_id, tracking_q_transcript_id, coordinates, q_strand, category,v[2:],'3 genes', sep= '\t', file = o_merged)
@@ -577,8 +551,6 @@ with open(match, 'w') as o_match, open(r_ext, 'w') as o_r_ext, open(l_ext, 'w') 
 										#ori_PID, rev_PID, delta_PID = calc_rev_PID(q_transcript_id, coordinates, q_strand)
 										#print(tracking_q_transcript_id, coordinates, q_strand, ori_PID, rev_PID, delta_PID, sep ='\t', file = l_ext_pid)
 										output_features(q_transcript, o_l_ext)
-										#--output_features(q_transcript, o_overlap_novel), output_features(q_transcript, o_overlap_only), output_features(q_transcript, o_overlap_nomerged)
-										#--print(q_gene_id, tracking_q_transcript_id, coordinates, q_strand, category, sep= '\t', file = o_l_ext)
 								else:
 									build_linked_noisoform(tracking_q_transcript_id, temp5)
 									if tracking_q_transcript_id in linked_dict.keys():
@@ -596,8 +568,6 @@ with open(match, 'w') as o_match, open(r_ext, 'w') as o_r_ext, open(l_ext, 'w') 
 										#ori_PID, rev_PID, delta_PID = calc_rev_PID(q_transcript_id, coordinates, q_strand)
 										#print(tracking_q_transcript_id, coordinates, q_strand, ori_PID, rev_PID, delta_PID, sep ='\t', file = r_ext_pid)
 										output_features(q_transcript, o_r_ext)
-										#--output_features(q_transcript, o_overlap_novel), output_features(q_transcript, o_overlap_only), output_features(q_transcript, o_overlap_nomerged)
-										#--print(q_gene_id, tracking_q_transcript_id, coordinates, q_strand, category, sep= '\t', file = o_r_ext)
 							elif end_pos_intron_chain == end_pos_ref_intron_chain and start_pos_intron_chain != start_pos_ref_intron_chain:
 								if q_strand == '-':
 									build_linked_noisoform(tracking_q_transcript_id, temp5)
@@ -616,8 +586,6 @@ with open(match, 'w') as o_match, open(r_ext, 'w') as o_r_ext, open(l_ext, 'w') 
 										#ori_PID, rev_PID, delta_PID = calc_rev_PID(q_transcript_id, coordinates, q_strand)
 										#print(tracking_q_transcript_id, coordinates, q_strand, ori_PID, rev_PID, delta_PID, sep ='\t', file = r_ext_pid)
 										output_features(q_transcript, o_r_ext)
-										#--output_features(q_transcript, o_overlap_novel), output_features(q_transcript, o_overlap_only), output_features(q_transcript, o_overlap_nomerged)
-										#--print(q_gene_id, tracking_q_transcript_id, coordinates, q_strand, category, sep= '\t', file = o_r_ext)
 								else:
 									build_linked_noisoform(tracking_q_transcript_id, temp5)
 									if tracking_q_transcript_id in linked_dict.keys():
@@ -635,8 +603,6 @@ with open(match, 'w') as o_match, open(r_ext, 'w') as o_r_ext, open(l_ext, 'w') 
 										#ori_PID, rev_PID, delta_PID = calc_rev_PID(q_transcript_id, coordinates, q_strand)
 										#print(tracking_q_transcript_id, coordinates, q_strand, ori_PID, rev_PID, delta_PID, sep ='\t', file = l_ext_pid)
 										output_features(q_transcript, o_l_ext)
-										#--output_features(q_transcript, o_overlap_novel), output_features(q_transcript, o_overlap_only), output_features(q_transcript, o_overlap_nomerged)
-										#--print(q_gene_id, tracking_q_transcript_id, coordinates, q_strand, category, sep= '\t', file = o_l_ext)
 							elif start_pos_intron_chain != start_pos_ref_intron_chain and end_pos_intron_chain != end_pos_ref_intron_chain:
 								build_linked_noisoform(tracking_q_transcript_id, temp5)
 								if tracking_q_transcript_id in linked_dict.keys():
@@ -655,24 +621,18 @@ with open(match, 'w') as o_match, open(r_ext, 'w') as o_r_ext, open(l_ext, 'w') 
 										#ori_PID, rev_PID, delta_PID = calc_rev_PID(q_transcript_id, coordinates, q_strand)
 										#print(tracking_q_transcript_id, coordinates, q_strand, ori_PID, rev_PID, delta_PID, sep ='\t', file = lr_ext_pid)
 										output_features(q_transcript, o_lr_ext)
-										#--output_features(q_transcript, o_overlap_novel), output_features(q_transcript, o_overlap_only), output_features(q_transcript, o_overlap_nomerged)
-										#--print(q_gene_id, tracking_q_transcript_id, coordinates, q_strand, category, sep= '\t', file = o_lr_ext)									
 									else:
 										category = "complex changes (both extension+iwe)"
 										ic_longer_ref_subset_qry_refnotzero_complexchanges_ext_iwe_c+=1
 										#ori_PID, rev_PID, delta_PID = calc_rev_PID(q_transcript_id, coordinates, q_strand)
 										#print(tracking_q_transcript_id, coordinates, q_strand, ori_PID, rev_PID, delta_PID, sep ='\t', file = complexchanges_pid)
 										output_features(q_transcript, o_cc)
-										#--output_features(q_transcript, o_overlap_novel), output_features(q_transcript, o_overlap_only), output_features(q_transcript, o_overlap_nomerged)
-										#--print(q_gene_id, tracking_q_transcript_id, coordinates, q_strand, category, sep= '\t', file = o_cc)
 							elif start_pos_intron_chain == start_pos_ref_intron_chain and end_pos_intron_chain == end_pos_ref_intron_chain:
 								category = "Internal within exon"
 								ic_longer_ref_subset_qry_refnotzero_internalwithinexon_c+=1      #  351 ---   355
 								#ori_PID, rev_PID, delta_PID = calc_rev_PID(q_transcript_id, coordinates, q_strand)
 								#print(tracking_q_transcript_id, coordinates, q_strand, ori_PID, rev_PID, delta_PID, sep ='\t', file = iwe_pid)
 								output_features(q_transcript, o_iwe)
-								#--output_features(q_transcript, o_overlap_novel), output_features(q_transcript, o_overlap_only), output_features(q_transcript, o_overlap_nomerged)
-								#--print(q_gene_id, tracking_q_transcript_id, coordinates, q_strand, category, sep= '\t', file = o_iwe)
 								# for i in temp5:
 								# 	delta = (i[1]-i[0]+1)
 								# 	frame = delta/3
@@ -701,16 +661,12 @@ with open(match, 'w') as o_match, open(r_ext, 'w') as o_r_ext, open(l_ext, 'w') 
 								#ori_PID, rev_PID, delta_PID = calc_rev_PID(q_transcript_id, coordinates, q_strand)
 								#print(tracking_q_transcript_id, coordinates, q_strand, ori_PID, rev_PID, delta_PID, sep ='\t', file = iwi_pid)
 								output_features(q_transcript, o_iwi)
-								#--output_features(q_transcript, o_overlap_novel), output_features(q_transcript, o_overlap_only), output_features(q_transcript, o_overlap_nomerged)
-								#--print(q_gene_id, tracking_q_transcript_id, coordinates, q_strand, category, sep= '\t', file = o_iwi)
 							else:
 								category = "Complex changes, internal transcript boundaries" #internal and/or other modifications
 								ic_longer_ref_notsubset_qry_complexchanges_c+=1	# 564
 								#ori_PID, rev_PID, delta_PID = calc_rev_PID(q_transcript_id, coordinates, q_strand)
 								#print(tracking_q_transcript_id, coordinates, q_strand, ori_PID, rev_PID, delta_PID, sep ='\t', file = complexchanges_pid)
 								output_features(q_transcript, o_cc)
-								#--output_features(q_transcript, o_overlap_novel), output_features(q_transcript, o_overlap_only), output_features(q_transcript, o_overlap_nomerged)
-								#--print(q_gene_id, tracking_q_transcript_id, coordinates, q_strand, category, sep= '\t', file = o_cc)
 						else:
 							build_linked_noisoform(tracking_q_transcript_id, temp5)
 							if tracking_q_transcript_id in linked_dict.keys():
@@ -728,14 +684,10 @@ with open(match, 'w') as o_match, open(r_ext, 'w') as o_r_ext, open(l_ext, 'w') 
 								#ori_PID, rev_PID, delta_PID = calc_rev_PID(q_transcript_id, coordinates, q_strand)
 								#print(tracking_q_transcript_id, coordinates, q_strand, ori_PID, rev_PID, delta_PID, sep ='\t', file = complexchanges_pid)
 								output_features(q_transcript, o_cc)
-								#--output_features(q_transcript, o_overlap_novel), output_features(q_transcript, o_overlap_only), output_features(q_transcript, o_overlap_nomerged)
-								#--print(q_gene_id, tracking_q_transcript_id, coordinates, q_strand, category, sep= '\t', file = o_cc)
 				elif len(intron_chain)< len(ref_intron_chain):
 					category = 'Shorter'
 					ic_shorter_c+=1											# 10,755
 					output_features(q_transcript, o_short)
-					#output_features(q_transcript)
-					#--print(q_gene_id, tracking_q_transcript_id, coordinates, q_strand, category, sep= '\t', file = o_short)
 			else:
 				for k,(ref_intron_chain, ref_gene_id, ref_coordinates) in ref_transcript_intron_isoform_dict.items():
 					k_modif=k.split('.')[0]
@@ -764,8 +716,6 @@ with open(match, 'w') as o_match, open(r_ext, 'w') as o_r_ext, open(l_ext, 'w') 
 									#if delta_PID == 0.0:
 										#c_conserved+=1 #2811-2709
 									output_features(q_transcript, o_match)
-									#output_features(q_transcript)
-									#--print(q_gene_id, tracking_q_transcript_id, coordinates, q_strand, category, sep= '\t', file = o_match)
 							else:
 								i_ic_same_differentcontent_c+=1	 	   
 								if len(intron_chain) == 1:
@@ -779,8 +729,6 @@ with open(match, 'w') as o_match, open(r_ext, 'w') as o_r_ext, open(l_ext, 'w') 
 												#ori_PID, rev_PID, delta_PID = calc_rev_PID(q_transcript_id, coordinates, q_strand)
 												#print(tracking_q_transcript_id, coordinates, q_strand, ori_PID, rev_PID, delta_PID, sep ='\t', file = ad_pid)
 												output_features(q_transcript, o_ad)
-												#--output_features(q_transcript, o_overlap_novel), output_features(q_transcript, o_overlap_only), output_features(q_transcript, o_overlap_nomerged)
-												#--print(q_gene_id, tracking_q_transcript_id, coordinates, q_strand, category, sep= '\t', file = o_ad)
 										else:
 											if tracking_q_transcript_id not in isoform_dict.keys():
 												isoform_dict[tracking_q_transcript_id]=1
@@ -789,8 +737,6 @@ with open(match, 'w') as o_match, open(r_ext, 'w') as o_r_ext, open(l_ext, 'w') 
 												#ori_PID, rev_PID, delta_PID = calc_rev_PID(q_transcript_id, coordinates, q_strand)
 												#print(tracking_q_transcript_id, coordinates, q_strand, ori_PID, rev_PID, delta_PID, sep ='\t', file = aa_pid)
 												output_features(q_transcript, o_aa)
-												#--output_features(q_transcript, o_overlap_novel), output_features(q_transcript, o_overlap_only), output_features(q_transcript, o_overlap_nomerged)
-												#--print(q_gene_id, tracking_q_transcript_id, coordinates, q_strand, category, sep= '\t', file = o_aa)
 									elif intron_chain[0][-1] == ref_intron_chain[0][-1]:
 										if q_strand == '-':
 											if tracking_q_transcript_id not in isoform_dict.keys():
@@ -800,8 +746,6 @@ with open(match, 'w') as o_match, open(r_ext, 'w') as o_r_ext, open(l_ext, 'w') 
 												#ori_PID, rev_PID, delta_PID = calc_rev_PID(q_transcript_id, coordinates, q_strand)
 												#print(tracking_q_transcript_id, coordinates, q_strand, ori_PID, rev_PID, delta_PID, sep ='\t', file = aa_pid)
 												output_features(q_transcript, o_aa)
-												#--output_features(q_transcript, o_overlap_novel), output_features(q_transcript, o_overlap_only), output_features(q_transcript, o_overlap_nomerged)
-												#--print(q_gene_id, tracking_q_transcript_id, coordinates, q_strand, category, sep= '\t', file = o_aa)
 										else:
 											if tracking_q_transcript_id not in isoform_dict.keys():
 												isoform_dict[tracking_q_transcript_id]=1
@@ -810,8 +754,6 @@ with open(match, 'w') as o_match, open(r_ext, 'w') as o_r_ext, open(l_ext, 'w') 
 												#ori_PID, rev_PID, delta_PID = calc_rev_PID(q_transcript_id, coordinates, q_strand)
 												#print(tracking_q_transcript_id, coordinates, q_strand, ori_PID, rev_PID, delta_PID, sep ='\t', file = ad_pid)
 												output_features(q_transcript, o_ad)
-												#--output_features(q_transcript, o_overlap_novel), output_features(q_transcript, o_overlap_only), output_features(q_transcript, o_overlap_nomerged)
-												#--print(q_gene_id, tracking_q_transcript_id, coordinates, q_strand, category, sep= '\t', file = o_ad)
 									else:
 										if tracking_q_transcript_id not in isoform_dict.keys():
 											isoform_dict[tracking_q_transcript_id]=1
@@ -820,8 +762,6 @@ with open(match, 'w') as o_match, open(r_ext, 'w') as o_r_ext, open(l_ext, 'w') 
 											#ori_PID, rev_PID, delta_PID = calc_rev_PID(q_transcript_id, coordinates, q_strand)
 											#print(tracking_q_transcript_id, coordinates, q_strand, ori_PID, rev_PID, delta_PID, sep ='\t', file = aaad_pid)
 											output_features(q_transcript, o_aaad)
-											#--output_features(q_transcript, o_overlap_novel), output_features(q_transcript, o_overlap_only), output_features(q_transcript, o_overlap_nomerged)
-											#--print(q_gene_id, tracking_q_transcript_id, coordinates, q_strand, category, sep= '\t', file = o_aaad)
 								else:
 									i_ic_same_diff_notsingleintron_c+=1  
 									temp3 = [x for x in set_intron_chain if x not in set_ref_intron_chain]
@@ -837,8 +777,6 @@ with open(match, 'w') as o_match, open(r_ext, 'w') as o_r_ext, open(l_ext, 'w') 
 													#ori_PID, rev_PID, delta_PID = calc_rev_PID(q_transcript_id, coordinates, q_strand)
 													#print(tracking_q_transcript_id, coordinates, q_strand, ori_PID, rev_PID, delta_PID, sep ='\t', file = ad_pid)
 													output_features(q_transcript, o_ad)
-													#--output_features(q_transcript, o_overlap_novel), output_features(q_transcript, o_overlap_only), output_features(q_transcript, o_overlap_nomerged)
-													#--print(q_gene_id, tracking_q_transcript_id, coordinates, q_strand, category, sep= '\t', file = o_ad)
 											else:
 												if tracking_q_transcript_id not in isoform_dict.keys():
 													isoform_dict[tracking_q_transcript_id]=1
@@ -847,8 +785,6 @@ with open(match, 'w') as o_match, open(r_ext, 'w') as o_r_ext, open(l_ext, 'w') 
 													#ori_PID, rev_PID, delta_PID = calc_rev_PID(q_transcript_id, coordinates, q_strand)
 													#print(tracking_q_transcript_id, coordinates, q_strand, ori_PID, rev_PID, delta_PID, sep ='\t', file = aa_pid)
 													output_features(q_transcript, o_aa)
-													#--output_features(q_transcript, o_overlap_novel), output_features(q_transcript, o_overlap_only), output_features(q_transcript, o_overlap_nomerged)
-													#--print(q_gene_id, tracking_q_transcript_id, coordinates, q_strand, category, sep= '\t', file = o_aa)
 										elif temp3[0][0]!=temp4[0][0] and temp3[0][-1]==temp4[0][-1]:
 											if q_strand == '-':
 												if tracking_q_transcript_id not in isoform_dict.keys():
@@ -858,8 +794,6 @@ with open(match, 'w') as o_match, open(r_ext, 'w') as o_r_ext, open(l_ext, 'w') 
 													#ori_PID, rev_PID, delta_PID = calc_rev_PID(q_transcript_id, coordinates, q_strand)
 													#print(tracking_q_transcript_id, coordinates, q_strand, ori_PID, rev_PID, delta_PID, sep ='\t', file = aa_pid)
 													output_features(q_transcript, o_aa)
-													#--output_features(q_transcript, o_overlap_novel), output_features(q_transcript, o_overlap_only), output_features(q_transcript, o_overlap_nomerged)
-													#--print(q_gene_id, tracking_q_transcript_id, coordinates, q_strand, category, sep= '\t', file = o_aa)
 											else:
 												if tracking_q_transcript_id not in isoform_dict.keys():
 													isoform_dict[tracking_q_transcript_id]=1
@@ -868,8 +802,6 @@ with open(match, 'w') as o_match, open(r_ext, 'w') as o_r_ext, open(l_ext, 'w') 
 													#ori_PID, rev_PID, delta_PID = calc_rev_PID(q_transcript_id, coordinates, q_strand)
 													#print(tracking_q_transcript_id, coordinates, q_strand, ori_PID, rev_PID, delta_PID, sep ='\t', file = ad_pid)
 													output_features(q_transcript, o_ad)
-													#--output_features(q_transcript, o_overlap_novel), output_features(q_transcript, o_overlap_only), output_features(q_transcript, o_overlap_nomerged)
-													#--print(q_gene_id, tracking_q_transcript_id, coordinates, q_strand, category, sep= '\t', file = o_ad)
 										else:
 											if tracking_q_transcript_id not in isoform_dict.keys():
 												isoform_dict[tracking_q_transcript_id]=1
@@ -878,8 +810,6 @@ with open(match, 'w') as o_match, open(r_ext, 'w') as o_r_ext, open(l_ext, 'w') 
 												#ori_PID, rev_PID, delta_PID = calc_rev_PID(q_transcript_id, coordinates, q_strand)
 												#print(tracking_q_transcript_id, coordinates, q_strand, ori_PID, rev_PID, delta_PID, sep ='\t', file = aaad_pid)
 												output_features(q_transcript, o_aaad)
-												#--output_features(q_transcript, o_overlap_novel), output_features(q_transcript, o_overlap_only), output_features(q_transcript, o_overlap_nomerged)
-												#--print(q_gene_id, tracking_q_transcript_id, coordinates, q_strand, category, sep= '\t', file = o_aaad)
 									else:
 										if tracking_q_transcript_id not in isoform_dict.keys():
 											isoform_dict[tracking_q_transcript_id]=1											
@@ -888,8 +818,6 @@ with open(match, 'w') as o_match, open(r_ext, 'w') as o_r_ext, open(l_ext, 'w') 
 											#ori_PID, rev_PID, delta_PID = calc_rev_PID(q_transcript_id, coordinates, q_strand)
 											#print(tracking_q_transcript_id, coordinates, q_strand, ori_PID, rev_PID, delta_PID, sep ='\t', file = complexchanges_pid)
 											output_features(q_transcript, o_cc)
-											#--output_features(q_transcript, o_overlap_novel), output_features(q_transcript, o_overlap_only), output_features(q_transcript, o_overlap_nomerged)
-											#--print(q_gene_id, tracking_q_transcript_id, coordinates, q_strand, category, sep= '\t', file = o_cc)
 						elif len(intron_chain)>len(ref_intron_chain):
 							i_ic_longer_c+=1
 							temp5 = sorted([x for x in set_intron_chain if x not in set_ref_intron_chain])
@@ -902,8 +830,6 @@ with open(match, 'w') as o_match, open(r_ext, 'w') as o_r_ext, open(l_ext, 'w') 
 										category = 'Ref CDS intron absent, qry present'
 										i_ic_longer_ref_subset_qry_refiszero_c+=1						#   74
 										output_features(q_transcript, o_si)
-										#output_features(q_transcript)
-										#--print(q_gene_id, tracking_q_transcript_id, coordinates, q_strand, category, sep= '\t', file = o_si)
 								elif len(set_ref_intron_chain) > 0:
 									i_ic_longer_ref_subset_qry_refnotzero_c+=1				#1,151
 									start_pos_intron_chain = intron_chain[0]
@@ -930,8 +856,6 @@ with open(match, 'w') as o_match, open(r_ext, 'w') as o_r_ext, open(l_ext, 'w') 
 													#ori_PID, rev_PID, delta_PID = calc_rev_PID(q_transcript_id, coordinates, q_strand)
 													#print(tracking_q_transcript_id, coordinates, q_strand, ori_PID, rev_PID, delta_PID, sep ='\t', file = l_ext_pid)
 													output_features(q_transcript, o_l_ext)
-													#--output_features(q_transcript, o_overlap_novel), output_features(q_transcript, o_overlap_only), output_features(q_transcript, o_overlap_nomerged)
-													#--print(q_gene_id, tracking_q_transcript_id, coordinates, q_strand, category, sep= '\t', file = o_l_ext)
 										else:
 											build_linked_isoform(tracking_q_transcript_id, temp5)
 											if tracking_q_transcript_id not in isoform_dict.keys():
@@ -951,8 +875,6 @@ with open(match, 'w') as o_match, open(r_ext, 'w') as o_r_ext, open(l_ext, 'w') 
 													#ori_PID, rev_PID, delta_PID = calc_rev_PID(q_transcript_id, coordinates, q_strand)
 													#print(tracking_q_transcript_id, coordinates, q_strand, ori_PID, rev_PID, delta_PID, sep ='\t', file = r_ext_pid)
 													output_features(q_transcript, o_r_ext)
-													#--output_features(q_transcript, o_overlap_novel), output_features(q_transcript, o_overlap_only), output_features(q_transcript, o_overlap_nomerged)
-													#--print(q_gene_id, tracking_q_transcript_id, coordinates, q_strand, category, sep= '\t', file = o_r_ext)
 									elif end_pos_intron_chain == end_pos_ref_intron_chain and start_pos_intron_chain != start_pos_ref_intron_chain:
 										if q_strand == '-':
 											build_linked_isoform(tracking_q_transcript_id, temp5)
@@ -963,7 +885,6 @@ with open(match, 'w') as o_match, open(r_ext, 'w') as o_r_ext, open(l_ext, 'w') 
 													i_ic_longer_ref_subset_qry_refnotzero_right_linked_c+=1
 													output_features(q_transcript, o_merged)
 													k, v = tracking_q_transcript_id, linked_dict_isoform.get(tracking_q_transcript_id)
-													#--output_features(q_transcript, o_overlap_novel), output_features(q_transcript, o_overlap_only), output_features(q_transcript, o_merged)
 													#print(category, tracking_q_transcript_id, coordinates, q_strand, v[2:], '2 genes', sep= '\t') if len(v)==5 else print(category, tracking_q_transcript_id, coordinates, q_strand, v[2:],'3 genes', sep= '\t')
 													# > print(q_gene_id, tracking_q_transcript_id, coordinates, q_strand, category,v[2:], '2 genes', sep= '\t') if len(v)==5 else print(q_gene_id, tracking_q_transcript_id, coordinates, q_strand, category,v[2:],'3 genes', sep= '\t')
 													#--print(q_gene_id, tracking_q_transcript_id, coordinates, q_strand, category,v[2:], '2 genes', sep= '\t', file = o_merged) if len(v)==4 else print(q_gene_id, tracking_q_transcript_id, coordinates, q_strand, category,v[2:],'3 genes', sep= '\t', file = o_merged)
@@ -973,8 +894,6 @@ with open(match, 'w') as o_match, open(r_ext, 'w') as o_r_ext, open(l_ext, 'w') 
 													#ori_PID, rev_PID, delta_PID = calc_rev_PID(q_transcript_id, coordinates, q_strand)
 													#print(tracking_q_transcript_id, coordinates, q_strand, ori_PID, rev_PID, delta_PID, sep ='\t', file = r_ext_pid)
 													output_features(q_transcript, o_r_ext)
-													#--output_features(q_transcript, o_overlap_novel), output_features(q_transcript, o_overlap_only), output_features(q_transcript, o_overlap_nomerged)
-													#--print(q_gene_id, tracking_q_transcript_id, coordinates, q_strand, category, sep= '\t', file = o_r_ext)
 										else:
 											build_linked_isoform(tracking_q_transcript_id, temp5)
 											if tracking_q_transcript_id not in isoform_dict.keys():
@@ -984,7 +903,6 @@ with open(match, 'w') as o_match, open(r_ext, 'w') as o_r_ext, open(l_ext, 'w') 
 													i_ic_longer_ref_subset_qry_refnotzero_left_linked_c+=1
 													output_features(q_transcript, o_merged)
 													k, v = tracking_q_transcript_id, linked_dict_isoform.get(tracking_q_transcript_id)
-													#--output_features(q_transcript, o_overlap_novel), output_features(q_transcript, o_overlap_only), output_features(q_transcript, o_merged)
 													#print(category, tracking_q_transcript_id, coordinates, q_strand, v[2:], '2 genes', sep= '\t') if len(v)==5 else print(category, tracking_q_transcript_id, coordinates, q_strand, v[2:],'3 genes', sep= '\t')
 													# > print(q_gene_id, tracking_q_transcript_id, coordinates, q_strand, category,v[2:], '2 genes', sep= '\t') if len(v)==5 else print(q_gene_id, tracking_q_transcript_id, coordinates, q_strand, category,v[2:],'3 genes', sep= '\t')
 													#--print(q_gene_id, tracking_q_transcript_id, coordinates, q_strand, category,v[2:], '2 genes', sep= '\t', file = o_merged) if len(v)==4 else print(q_gene_id, tracking_q_transcript_id, coordinates, q_strand, category,v[2:],'3 genes', sep= '\t', file = o_merged)
@@ -994,8 +912,6 @@ with open(match, 'w') as o_match, open(r_ext, 'w') as o_r_ext, open(l_ext, 'w') 
 													#ori_PID, rev_PID, delta_PID = calc_rev_PID(q_transcript_id, coordinates, q_strand)
 													#print(tracking_q_transcript_id, coordinates, q_strand, ori_PID, rev_PID, delta_PID, sep ='\t', file = l_ext_pid)
 													output_features(q_transcript, o_l_ext)
-													#--output_features(q_transcript, o_overlap_novel), output_features(q_transcript, o_overlap_only), output_features(q_transcript, o_overlap_nomerged)
-													#--print(q_gene_id, tracking_q_transcript_id, coordinates, q_strand, category, sep= '\t', file = o_l_ext)
 									elif start_pos_intron_chain != start_pos_ref_intron_chain and end_pos_intron_chain != end_pos_ref_intron_chain:
 										if tracking_q_transcript_id not in isoform_dict.keys():
 											isoform_dict[tracking_q_transcript_id]=1
@@ -1004,8 +920,6 @@ with open(match, 'w') as o_match, open(r_ext, 'w') as o_r_ext, open(l_ext, 'w') 
 											#ori_PID, rev_PID, delta_PID = calc_rev_PID(q_transcript_id, coordinates, q_strand)
 											#print(tracking_q_transcript_id, coordinates, q_strand, ori_PID, rev_PID, delta_PID, sep ='\t', file = lr_ext_pid)
 											output_features(q_transcript, o_lr_ext)
-											#--output_features(q_transcript, o_overlap_novel), output_features(q_transcript, o_overlap_only), output_features(q_transcript, o_overlap_nomerged)
-											#--print(q_gene_id, tracking_q_transcript_id, coordinates, q_strand, category, sep= '\t', file = o_lr_ext)
 									elif start_pos_intron_chain == start_pos_ref_intron_chain and end_pos_intron_chain == end_pos_ref_intron_chain:
 										if tracking_q_transcript_id not in isoform_dict.keys():
 											isoform_dict[tracking_q_transcript_id]=1
@@ -1014,8 +928,6 @@ with open(match, 'w') as o_match, open(r_ext, 'w') as o_r_ext, open(l_ext, 'w') 
 											#ori_PID, rev_PID, delta_PID = calc_rev_PID(q_transcript_id, coordinates, q_strand)
 											#print(tracking_q_transcript_id, coordinates, q_strand, ori_PID, rev_PID, delta_PID, sep ='\t', file = iwe_pid)
 											output_features(q_transcript, o_iwe)
-											#--output_features(q_transcript, o_overlap_novel), output_features(q_transcript, o_overlap_only), output_features(q_transcript, o_overlap_nomerged)
-											#--print(q_gene_id, tracking_q_transcript_id, coordinates, q_strand, category, sep= '\t', file = o_iwe)
 									# 		for i in temp5:
 									# 			delta = (i[1]-i[0]+1)
 									# 			frame = delta/3
@@ -1045,8 +957,6 @@ with open(match, 'w') as o_match, open(r_ext, 'w') as o_r_ext, open(l_ext, 'w') 
 											#ori_PID, rev_PID, delta_PID = calc_rev_PID(q_transcript_id, coordinates, q_strand)
 											#print(tracking_q_transcript_id, coordinates, q_strand, ori_PID, rev_PID, delta_PID, sep ='\t', file = iwi_pid)
 											output_features(q_transcript, o_iwi)
-											#--output_features(q_transcript, o_overlap_novel), output_features(q_transcript, o_overlap_only), output_features(q_transcript, o_overlap_nomerged)
-											#--print(q_gene_id, tracking_q_transcript_id, coordinates, q_strand, category, sep= '\t', file = o_iwi)
 									else:
 										if tracking_q_transcript_id not in isoform_dict.keys():
 											isoform_dict[tracking_q_transcript_id]=1
@@ -1055,8 +965,6 @@ with open(match, 'w') as o_match, open(r_ext, 'w') as o_r_ext, open(l_ext, 'w') 
 											#ori_PID, rev_PID, delta_PID = calc_rev_PID(q_transcript_id, coordinates, q_strand)
 											#print(tracking_q_transcript_id, coordinates, q_strand, ori_PID, rev_PID, delta_PID, sep ='\t', file = complexchanges_pid)
 											output_features(q_transcript, o_cc)
-											#--output_features(q_transcript, o_overlap_novel), output_features(q_transcript, o_overlap_only), output_features(q_transcript, o_overlap_nomerged)
-											#--print(q_gene_id, tracking_q_transcript_id, coordinates, q_strand, category, sep= '\t', file = o_cc)
 								else:
 									build_linked_isoform(tracking_q_transcript_id, temp5)
 									if tracking_q_transcript_id not in isoform_dict.keys():
@@ -1066,7 +974,6 @@ with open(match, 'w') as o_match, open(r_ext, 'w') as o_r_ext, open(l_ext, 'w') 
 											i_ic_longer_ref_subset_qry_other_linked_c+=1
 											output_features(q_transcript, o_merged)
 											k, v = tracking_q_transcript_id, linked_dict_isoform.get(tracking_q_transcript_id)
-											#--output_features(q_transcript, o_overlap_novel), output_features(q_transcript, o_overlap_only), output_features(q_transcript, o_merged)
 											#print(category, tracking_q_transcript_id, coordinates, q_strand, v[2:], '2 genes', sep= '\t') if len(v)==5 else print(category, tracking_q_transcript_id, coordinates, q_strand, v[2:],'3 genes', sep= '\t')
 											# > print(q_gene_id, tracking_q_transcript_id, coordinates, q_strand, category,v[2:], '2 genes', sep= '\t') if len(v)==5 else print(q_gene_id, tracking_q_transcript_id, coordinates, q_strand, category,v[2:],'3 genes', sep= '\t')
 											#--print(q_gene_id, tracking_q_transcript_id, coordinates, q_strand, category,v[2:], '2 genes', sep= '\t', file = o_merged) if len(v)==4 else print(q_gene_id, tracking_q_transcript_id, coordinates, q_strand, category,v[2:],'3 genes', sep= '\t', file = o_merged)
@@ -1076,8 +983,6 @@ with open(match, 'w') as o_match, open(r_ext, 'w') as o_r_ext, open(l_ext, 'w') 
 											#ori_PID, rev_PID, delta_PID = calc_rev_PID(q_transcript_id, coordinates, q_strand)
 											#print(tracking_q_transcript_id, coordinates, q_strand, ori_PID, rev_PID, delta_PID, sep ='\t', file = complexchanges_pid)
 											output_features(q_transcript, o_cc)
-											#--output_features(q_transcript, o_overlap_novel), output_features(q_transcript, o_overlap_only), output_features(q_transcript, o_overlap_nomerged)
-											#--print(q_gene_id, tracking_q_transcript_id, coordinates, q_strand, category, sep= '\t', file = o_cc)
 						elif len(intron_chain)<len(ref_intron_chain):
 							#print('shorter', k, tracking_q_transcript_id, intron_chain, len(intron_chain), 'ref', ref_intron_chain, len(ref_intron_chain), ref_coordinate)
 							if tracking_q_transcript_id not in isoform_dict.keys():
@@ -1085,8 +990,6 @@ with open(match, 'w') as o_match, open(r_ext, 'w') as o_r_ext, open(l_ext, 'w') 
 								category = 'Shorter'
 								i_ic_shorter_c+=1
 								output_features(q_transcript, o_short)
-								#output_features(q_transcript)
-								#--print(q_gene_id, tracking_q_transcript_id, coordinates, q_strand, category, sep= '\t', file = o_short)
 		elif 'XLOC' in q_transcript_id:
 			transcript_id = q_attributes['ID'][0]
 			q_xloc_c+=1
